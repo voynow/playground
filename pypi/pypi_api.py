@@ -1,4 +1,5 @@
 import os
+import tarfile
 
 import requests
 from bs4 import BeautifulSoup
@@ -30,32 +31,49 @@ def get_packages():
 
 
 def get_package_metadata(package_name: str) -> dict:
-    """
-    Retrieve metadata for a given package name
-    By default we assume no license whitelist
-    """
+    """Retrieve metadata for a given package name"""
     metadata_url = f"https://pypi.org/pypi/{package_name}/json"
     response = requests.get(metadata_url)
     if response.status_code == 200:
         return response.json()
-    return {"msg": f"Failed to retrieve {package_name}"}
+    return {
+        "msg": f"Failed to retrieve metadata for {package_name}: {response.reason}",
+        "status": response.status_code,
+    }
 
 
-def download_package_zip(name: str, url: str, download_path: str = "downloads") -> str:
-    """Download package zip from a given URL"""
-    response = requests.get(url, stream=True)
+def download_source_code(package_metadata: dict, target_dir: str):
+    # Extract package info
+    name = package_metadata["info"]["name"]
+    version = package_metadata["info"]["version"]
 
+    # Ensure the directory exists
+    os.makedirs(target_dir, exist_ok=True)
+
+    # Find the source distribution URL (.tar.gz)
+    for release in package_metadata["releases"][version]:
+        if release["packagetype"] == "sdist":
+            url = release["url"]
+            break
+    else:
+        print(f"({name}) No source distribution found for {name}-{version}")
+        return
+
+    # Download the source distribution
+    response = requests.get(url)
     if response.status_code == 200:
-        # Correct the file extension to .tar.gz
-        path = f"{download_path}/{name}/downloaded_package.tar.gz"
+        tar_path = os.path.join(target_dir, f"{name}.tar.gz")
+        with open(tar_path, "wb") as file:
+            file.write(response.content)
 
-        # create directory if it doesn't exist
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-
-        # download file
-        with open(path, "wb") as file:
-            for chunk in response.iter_content(chunk_size=8192):
-                file.write(chunk)
-
-        return "Package downloaded successfully."
-    return f"Failed to download package. Status code: {response.status_code}"
+        if os.path.exists(tar_path) and os.path.getsize(tar_path) > 0:
+            try:
+                with tarfile.open(tar_path) as tar:
+                    tar.extractall(path=target_dir)
+            except tarfile.ReadError:
+                print(f"({name}) Failed to read {tar_path}. It may not be a tar archive.")
+        else:
+            print(f"({name}) {tar_path} does not exist or is empty.")
+        os.remove(tar_path)
+    else:
+        print(f"({name}) Failed to download {url}")
