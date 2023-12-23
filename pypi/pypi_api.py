@@ -46,7 +46,8 @@ def download_package_zip(name: str, url: str, download_path: str = "downloads") 
     response = requests.get(url, stream=True)
 
     if response.status_code == 200:
-        path = f"{download_path}/{name}/downloaded_package.zip"
+        # Correct the file extension to .tar.gz
+        path = f"{download_path}/{name}/downloaded_package.tar.gz"
 
         # create directory if it doesn't exist
         os.makedirs(os.path.dirname(path), exist_ok=True)
