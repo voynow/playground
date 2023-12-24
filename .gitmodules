@@ -1,0 +1,4 @@
+[submodule "automata"]
+	path = automata
+	url = https://github.com/emrgnt-cmplxty/automata.git
+	branch = full-automata
