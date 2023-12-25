@@ -23,13 +23,15 @@ logger = logging.getLogger(__name__)
 def initialize_resources(
     project_name: str,
     scip_base_path: str = "embeddings/scip/",
+    persist_directory_path: str = "embeddings/code",
 ) -> tuple[SymbolGraph, SymbolCodeEmbeddingHandler]:
     """Initialize the resources needed to build the code embeddings."""
-    symbol_graph = SymbolGraph(os.path.join(scip_base_path, f"{project_name}.scip"))
+    scip_path = os.path.join(scip_base_path, f"{project_name}.scip")
+    symbol_graph = SymbolGraph(scip_path)
 
     code_embedding_db = ChromaSymbolEmbeddingVectorDatabase(
         project_name,
-        # persist_directory=DependencyFactory.DEFAULT_CODE_EMBEDDING_FPATH,
+        persist_directory=persist_directory_path,
         factory=SymbolCodeEmbedding.from_args,
     )
     embedding_provider = OpenAIEmbeddingProvider()
@@ -81,13 +83,18 @@ def process_embeddings_for_project(
     project_name: str,
 ) -> None:
     """Process the embeddings for a given project"""
+    print("Initializing py_module_loader")
     initialize_py_module_loader(
         project_root_fpath=project_root_fpath,
         project_name=project_name,
     )
+    print("Initializing resources")
     symbol_graph, symbol_code_embedding_handler = initialize_resources(
         project_name=project_name
     )
+    print("Collecting symbols")
     filtered_symbols = collect_symbols(symbol_graph)
+    print("Creating subgraph")
     dependency_factory.create_subgraph()
+    print("Processing embeddings")
     process_embeddings(symbol_code_embedding_handler, filtered_symbols)
