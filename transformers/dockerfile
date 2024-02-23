@@ -1,0 +1,26 @@
+# Use an official Python runtime as a parent image
+FROM python:3.10-slim-buster
+
+# Set the working directory in the container
+WORKDIR /usr/src/app
+
+# Copy the current directory contents into the container at /usr/src/app
+COPY . .
+
+# gcc and python3-dev are required for installing the transformers[pytorch]
+RUN apt-get update && apt-get install -y \
+gcc \
+python3-dev \
+&& rm -rf /var/lib/apt/lists/*
+
+# Install any needed packages specified in requirements.txt
+RUN pip install --no-cache-dir -U -r requirements.txt
+
+# Make port 8000 available to the world outside this container
+EXPOSE 8000
+
+# Define environment variable
+ENV NAME World
+
+# Run app.py when the container launches
+CMD ["python", "app.py"]
